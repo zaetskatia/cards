@@ -2,6 +2,7 @@
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <optional>
 #include <vector>
+#include <mutex>
 #include "Card.h"
 
 
@@ -19,6 +20,6 @@ public:
 
 private:
     void initializeDatabase();
-
-     std::unique_ptr<SQLite::Database> db;
+    std::unique_ptr<SQLite::Database> db;
+    std::mutex dbMutex;
 };

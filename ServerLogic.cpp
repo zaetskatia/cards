@@ -2,11 +2,10 @@
 #include <optional>
 #include "ServerLogic.h"
 
-
-
-void ServerLogic::handleGetAllCardsRequest(http::request<http::string_body>& request, 
-                                           http::response<http::string_body>& response, 
-                                           std::string clientId) {
+void ServerLogic::handleGetAllCardsRequest(http::request<http::string_body> &request,
+                                           http::response<http::string_body> &response,
+                                           std::string clientId)
+{
     auto cardsOpt = dataService.getAllCards(clientId);
     if (cardsOpt.has_value())
     {
@@ -18,7 +17,7 @@ void ServerLogic::handleGetAllCardsRequest(http::request<http::string_body>& req
     }
 }
 
-void ServerLogic::handleGetRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId) 
+void ServerLogic::handleGetRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId)
 {
     std::string url = request.target().to_string();
     auto cardIdOpt = extractCardIdFromURL(url);
@@ -27,9 +26,9 @@ void ServerLogic::handleGetRequest(http::request<http::string_body>& request, ht
         HttpResponseBuilder::buildJsonResponseForError(response, "Invalid card ID format", http::status::bad_request);
         return;
     }
-    
+
     auto cardOpt = dataService.getCard(cardIdOpt.value(), clientId);
-    if(cardOpt.has_value())
+    if (cardOpt.has_value())
     {
         HttpResponseBuilder::buildJsonResponseForData(response, cardOpt.value());
     }
@@ -39,21 +38,21 @@ void ServerLogic::handleGetRequest(http::request<http::string_body>& request, ht
     }
 }
 
-void ServerLogic::handlePostRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId) 
+void ServerLogic::handlePostRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId)
 {
     auto newCardOpt = dataService.insertCard(request.body(), clientId);
 
-    if (newCardOpt.has_value()) 
+    if (newCardOpt.has_value())
     {
         HttpResponseBuilder::buildJsonResponseForData(response, newCardOpt.value());
-    } 
-    else 
+    }
+    else
     {
         HttpResponseBuilder::buildJsonResponseForError(response, "Failed to create new card", http::status::internal_server_error);
     }
 }
 
-void ServerLogic::handlePutRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId) 
+void ServerLogic::handlePutRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId)
 {
     std::string url = request.target().to_string();
     auto cardIdOpt = extractCardIdFromURL(url);
@@ -63,19 +62,19 @@ void ServerLogic::handlePutRequest(http::request<http::string_body>& request, ht
         return;
     }
 
-    if (dataService.updateCard(cardIdOpt.value(), request.body(), clientId)) 
+    if (dataService.updateCard(cardIdOpt.value(), request.body(), clientId))
     {
         nlohmann::json successJson;
         successJson["message"] = "Card updated with ID: " + std::to_string(cardIdOpt.value());
         HttpResponseBuilder::buildJsonResponseForData(response, successJson);
-    } 
-    else 
+    }
+    else
     {
         HttpResponseBuilder::buildJsonResponseForError(response, "Card with ID: " + std::to_string(cardIdOpt.value()) + " not found", http::status::not_found);
     }
 }
 
-void ServerLogic::handleDeleteRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId) 
+void ServerLogic::handleDeleteRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId)
 {
     std::string url = request.target().to_string();
     auto cardIdOpt = extractCardIdFromURL(url);
@@ -84,74 +83,87 @@ void ServerLogic::handleDeleteRequest(http::request<http::string_body>& request,
         HttpResponseBuilder::buildJsonResponseForError(response, "Invalid card ID format", http::status::bad_request);
         return;
     }
-    if (dataService.deleteCard(cardIdOpt.value(), clientId)) 
+    if (dataService.deleteCard(cardIdOpt.value(), clientId))
     {
         nlohmann::json successJson;
         successJson["message"] = "Card deleted with ID: " + std::to_string(cardIdOpt.value());
         HttpResponseBuilder::buildJsonResponseForData(response, successJson);
-    } 
-    else 
+    }
+    else
     {
         HttpResponseBuilder::buildJsonResponseForError(response, "Card with ID: " + std::to_string(cardIdOpt.value()) + " not found", http::status::not_found);
     }
 }
 
-std::optional<std::string> ServerLogic::extractClientId(const http::request<http::string_body>& request) 
+std::optional<std::string> ServerLogic::extractClientId(const http::request<http::string_body> &request)
 {
-   auto it = request.find("X-Client-ID");
-    if (it == request.end()) {
-       return std::nullopt; // Header not found
+    auto it = request.find("X-Client-ID");
+    if (it == request.end())
+    {
+        return std::nullopt; // Header not found
     }
 
     // Explicitly construct a std::string from boost::beast::string_view
     std::string clientIdStr = std::string(it->value().data(), it->value().size());
 
-    if (clientIdStr.empty()) {
+    if (clientIdStr.empty())
+    {
         return std::nullopt; // Header value is empty
     }
 
-    try {
+    try
+    {
         return clientIdStr;
-    } catch (...) {
-        return std::nullopt;;
+    }
+    catch (...)
+    {
+        return std::nullopt;
+        ;
     }
 }
 
- std::optional<int> ServerLogic::extractCardIdFromURL(const std::string& url) 
- {
-        std::vector<std::string> segments;
-        std::stringstream urlStream(url);
-        std::string segment;
+std::optional<int> ServerLogic::extractCardIdFromURL(const std::string &url)
+{
+    std::vector<std::string> segments;
+    std::stringstream urlStream(url);
+    std::string segment;
 
-        // Split the URL into segments based on '/'
-        while (std::getline(urlStream, segment, '/')) {
-            if (!segment.empty()) {
-                segments.push_back(segment);
-            }
+    // Split the URL into segments based on '/'
+    while (std::getline(urlStream, segment, '/'))
+    {
+        if (!segment.empty())
+        {
+            segments.push_back(segment);
         }
+    }
 
-        // Assuming the URL format is /cards/{cardId}
-        if (segments.size() >= 2 && segments[0] == "cards") {
-            try {
-                return std::stoi(segments[1]);
-            } catch (const std::invalid_argument& e) {
-                // Handle the case where the conversion fails
-                return std::nullopt; // Indicate an error or throw an exception
-            }
+    // Assuming the URL format is /cards/{cardId}
+    if (segments.size() >= 2 && segments[0] == "cards")
+    {
+        try
+        {
+            return std::stoi(segments[1]);
         }
+        catch (const std::invalid_argument &e)
+        {
+            // Handle the case where the conversion fails
+            return std::nullopt; // Indicate an error or throw an exception
+        }
+    }
 
-        return std::nullopt; // Card ID not found or URL format is incorrect
+    return std::nullopt; // Card ID not found or URL format is incorrect
 }
 
-std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(http::request<http::string_body>& request) 
+std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(http::request<http::string_body> &request)
 {
     auto response = std::make_shared<http::response<http::string_body>>();
     response->version(request.version());
     response->set(http::field::server, "My HTTP Cards Server");
 
-    try {
+    try
+    {
         auto clientIdOpt = extractClientId(request);
-        if (!clientIdOpt.has_value()) 
+        if (!clientIdOpt.has_value())
         {
             // Handle error: Client ID not provided or invalid
             HttpResponseBuilder::buildJsonResponseForError(*response, "No client id found", http::status::unauthorized);
@@ -161,31 +173,31 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
         std::string clientId = clientIdOpt.value();
 
         // Call the appropriate method based on the HTTP verb
-        if (request.method() == http::verb::post) 
+        if (request.method() == http::verb::post)
         {
             handlePostRequest(request, *response, clientId);
-        } 
-        else if (request.method() == http::verb::get) 
+        }
+        else if (request.method() == http::verb::get)
         {
             std::string url = request.target().to_string();
-            if (url.find("/cards/") != std::string::npos) 
+            if (url.find("/cards/") != std::string::npos)
             {
                 handleGetRequest(request, *response, clientId);
-            } 
-            else if (url == "/cards") 
+            }
+            else if (url == "/cards")
             {
                 handleGetAllCardsRequest(request, *response, clientId);
             }
-        } 
-        else if (request.method() == http::verb::put) 
+        }
+        else if (request.method() == http::verb::put)
         {
             handlePutRequest(request, *response, clientId);
-        } 
-        else if (request.method() == http::verb::delete_) 
+        }
+        else if (request.method() == http::verb::delete_)
         {
             handleDeleteRequest(request, *response, clientId);
-        } 
-        else 
+        }
+        else
         {
             // Method not supported
             response->result(http::status::method_not_allowed);
@@ -196,7 +208,7 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
         response->prepare_payload();
         return response;
     }
-    catch (const std::exception& e)
+    catch (const std::exception &e)
     {
         // Send an Internal Server Error response
         HttpResponseBuilder::buildJsonResponseForError(*response, "Undefined error", http::status::internal_server_error);

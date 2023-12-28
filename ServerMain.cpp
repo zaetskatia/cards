@@ -5,54 +5,55 @@
 #include <vector>
 #include <thread>
 
-using boost::asio::ip::tcp;
+namespace asio = boost::asio;
+namespace beast = boost::beast;
+using tcp = asio::ip::tcp;
 
-int main() {
-    try {
-        // Initialize Boost.Asio IO context
-        boost::asio::io_context io_context;
+class Server
+{
+public:
+    Server(asio::io_context &ioc, short port, ServerLogic &serverLogic)
+        : ioc_(ioc), acceptor_(ioc, tcp::endpoint(tcp::v4(), port)), serverLogic_(serverLogic)
+    {
 
-        // Create a work guard to prevent io_context from running out of work
-        boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard(io_context.get_executor());
+        do_accept();
+    }
 
-        // Set up server socket to accept connections on TCP port 8080
-        tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), 8080));
+private:
+    asio::io_context &ioc_;
+    tcp::acceptor acceptor_;
+    ServerLogic &serverLogic_;
+    void do_accept()
+    {
 
+        acceptor_.async_accept(
+            [this](beast::error_code ec, tcp::socket socket)
+            {
+                if (!ec)
+                {
+                    std::make_shared<Session>(std::move(socket), serverLogic_)->start();
+                }
+                do_accept();
+            });
+    }
+};
+
+int main()
+{
+    try
+    {
+        asio::io_context ioc;
         // Database and logic setup
         DatabaseAccess dbAccess("database.db");
         DataService dataService(dbAccess);
         ServerLogic serverLogic(dataService);
+        Server server(ioc, 8080, serverLogic);
 
-        // Function to asynchronously accept connections
-        std::function<void()> doAccept;
-        doAccept = [&]() {
-            acceptor.async_accept(
-                [&io_context, &doAccept, &serverLogic](boost::beast::error_code ec, tcp::socket socket) {
-                    if (!ec) {
-                        // Create a new Session for each connection and start it
-                        std::make_shared<Session>(std::move(socket), serverLogic)->start();
-                    }
-                    doAccept(); // Continue accepting connections
-                });
-        };
-
-        doAccept(); // Start accepting connections
-
-        // Run io_context in a pool of threads
-        std::vector<std::thread> thread_pool;
-        for (std::size_t i = 0; i < std::thread::hardware_concurrency(); ++i) {
-            thread_pool.emplace_back([&io_context]() {
-                io_context.run();
-            });
-        }
-
-        // Join all threads
-        for (auto& thread : thread_pool) {
-            thread.join();
-        }
-
-    } catch (const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        ioc.run();
+    }
+    catch (std::exception &e)
+    {
+        std::cerr << "Exception: " << e.what() << "\n";
     }
 
     return 0;

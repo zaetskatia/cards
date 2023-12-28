@@ -2,7 +2,8 @@
 
 #include <string>
 
-struct Card {
+struct Card
+{
     int id;
     std::string clientId;
     int folderId = 1;

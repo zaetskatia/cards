@@ -15,27 +15,27 @@
 using tcp = boost::asio::ip::tcp;
 namespace http = boost::beast::http;
 
-class ServerLogic {
+class ServerLogic
+{
 public:
     // Constructor accepts an interface pointer
-    ServerLogic(DataService& dataService) : dataService(dataService) {}
+    ServerLogic(DataService &dataService) : dataService(dataService) {}
 
-    std::shared_ptr<http::response<http::string_body>> handleRequest(http::request<http::string_body>& request);
-    
+    std::shared_ptr<http::response<http::string_body>> handleRequest(http::request<http::string_body> &request);
+
 private:
-    void handlePostRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId);
-    void handleGetAllCardsRequest(http::request<http::string_body>& request, 
-                                           http::response<http::string_body>& response, 
-                                           std::string clientId);
-    void handleGetRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId);
-    void handlePutRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId);
-    void handleDeleteRequest(http::request<http::string_body>& request, http::response<http::string_body>& response, std::string clientId);
+    void handlePostRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId);
+    void handleGetAllCardsRequest(http::request<http::string_body> &request,
+                                  http::response<http::string_body> &response,
+                                  std::string clientId);
+    void handleGetRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId);
+    void handlePutRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId);
+    void handleDeleteRequest(http::request<http::string_body> &request, http::response<http::string_body> &response, std::string clientId);
 
-    std::optional<std::string> extractClientId(const http::request<http::string_body>& request);  
-    std::optional<int> extractCardIdFromURL(const std::string& url);
+    std::optional<std::string> extractClientId(const http::request<http::string_body> &request);
+    std::optional<int> extractCardIdFromURL(const std::string &url);
 
-    DataService& dataService;
-
+    DataService &dataService;
 };
 
 #endif // SERVER_LOGIC_HPP
