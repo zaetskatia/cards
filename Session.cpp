@@ -35,7 +35,6 @@ void Session::doRead()
                                    });
 }
 
-
 void Session::doWrite()
 {
     auto self(shared_from_this());

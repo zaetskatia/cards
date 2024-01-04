@@ -1,4 +1,0 @@
-{"data":{"folderId":1,"id":3,"term":"Example Term","translation":"Example Translation"},"status":"success"}--_curl_--"folderId": 1curl
---_curl_-- "term": "Example Term"curl
---_curl_-- "translation": "frutty"curl
-{"data":{"folderId":1,"id":4,"term":"Example Term","translation":"Example Translation"},"status":"success"}
