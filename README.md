@@ -44,7 +44,10 @@ use tasks.json
 
 ## Running the Server
 - Without Docker:
-./build/CardsServer
+  ```
+  ./build/CardsServer
+  ```
+
 
 - With Docker:
   ```
