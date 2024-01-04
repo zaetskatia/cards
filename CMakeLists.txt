@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
+
 project(cardsServer)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -11,6 +12,7 @@ file(GLOB SOURCES "*.cpp")
 add_executable(CardsServer ${SOURCES})
 
 find_package(nlohmann_json 3.2.0 REQUIRED)
+find_package(SQLiteCpp)
 
 # Link libraries
-target_link_libraries(CardsServer stdc++ boost_system boost_thread SQLiteCpp sqlite3 pthread nlohmann_json::nlohmann_json)
+target_link_libraries(CardsServer stdc++ boost_system boost_thread SQLiteCpp pthread nlohmann_json::nlohmann_json)

@@ -27,7 +27,8 @@ COPY . /root/projects/cardsServer
 WORKDIR /root/projects/cardsServer
 
 # Create a build directory, run cmake, and build the project
-RUN mkdir build && \
+RUN rm -rf build && \
+    mkdir build && \
     cd build && \
     cmake .. && \
     make

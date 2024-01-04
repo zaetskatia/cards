@@ -1,5 +1,4 @@
-#ifndef SESSION_H
-#define SESSION_H
+#pragma once
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
@@ -7,9 +6,10 @@
 
 namespace beast = boost::beast;
 
-class Session : public std::enable_shared_from_this<Session> {
+class Session : public std::enable_shared_from_this<Session>
+{
 public:
-    Session(boost::asio::ip::tcp::socket socket, ServerLogic& serverLogic);
+    Session(boost::asio::ip::tcp::socket socket, ServerLogic &serverLogic);
     void start();
 
 private:
@@ -17,11 +17,8 @@ private:
     beast::flat_buffer buffer_;
     beast::http::request<beast::http::string_body> request_;
     std::shared_ptr<beast::http::response<beast::http::string_body>> response_ptr_;
-    ServerLogic& serverLogic_;
+    ServerLogic &serverLogic_;
 
     void doRead();
     void doWrite();
-
 };
-
-#endif // SESSION_H

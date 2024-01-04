@@ -13,7 +13,6 @@ class DataService
 public:
     DataService(DatabaseAccess &dbAccess) : dbAccess(dbAccess) {}
 
-    // TODO return Card to server and call convertCardToJson from server?????
     std::optional<json> getAllCards(std::string clientId);
     std::optional<json> getCard(int cardId, std::string clientId);
     std::optional<json> insertCard(const std::string &cardData, std::string clientId);

@@ -103,7 +103,6 @@ std::optional<std::string> ServerLogic::extractClientId(const http::request<http
         return std::nullopt; // Header not found
     }
 
-    // Explicitly construct a std::string from boost::beast::string_view
     std::string clientIdStr = std::string(it->value().data(), it->value().size());
 
     if (clientIdStr.empty())
@@ -147,7 +146,7 @@ std::optional<int> ServerLogic::extractCardIdFromURL(const std::string &url)
         catch (const std::invalid_argument &e)
         {
             // Handle the case where the conversion fails
-            return std::nullopt; // Indicate an error or throw an exception
+            return std::nullopt;
         }
     }
 
@@ -172,7 +171,6 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
         }
         std::string clientId = clientIdOpt.value();
 
-        // Call the appropriate method based on the HTTP verb
         if (request.method() == http::verb::post)
         {
             handlePostRequest(request, *response, clientId);
@@ -200,9 +198,7 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
         else
         {
             // Method not supported
-            response->result(http::status::method_not_allowed);
-            response->set(http::field::content_type, "text/plain");
-            response->body() = "Method not allowed";
+            HttpResponseBuilder::buildJsonResponseForError(*response, "Method not allowed", http::status::method_not_allowed);
         }
 
         response->prepare_payload();

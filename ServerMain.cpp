@@ -43,7 +43,6 @@ int main()
     try
     {
         asio::io_context ioc;
-        // Database and logic setup
         DatabaseAccess dbAccess("database.db");
         DataService dataService(dbAccess);
         ServerLogic serverLogic(dataService);

@@ -25,7 +25,7 @@ void Session::doRead()
                                            else
                                            {
                                                std::cerr << "Read error: " << ec.message() << std::endl;
-                                               // Handle read error (e.g., close the socket)
+                                               // Handle read error (close the socket?)
                                            }
                                        }
                                        catch (const std::exception &e)

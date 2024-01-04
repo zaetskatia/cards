@@ -31,7 +31,7 @@ void DatabaseAccess::initializeDatabase()
     try
     {
         SQLite::Statement query(*db, createTableSql);
-        query.exec(); // Execute the SQL statement to create the table
+        query.exec();
     }
     catch (const std::exception &e)
     {
@@ -119,7 +119,6 @@ std::vector<Card> DatabaseAccess::getAllCards(std::string clientId)
     catch (const std::exception &e)
     {
         std::cerr << "Database exception: " << e.what() << std::endl;
-        // Handle or log the error as needed
     }
 
     return cards;
