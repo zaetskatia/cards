@@ -8,18 +8,20 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "-std=c++17",
-                "${workspaceFolder}/*.cpp",
+                "${workspaceFolder}/src/**/*.cpp",
+                "${workspaceFolder}/src/*.cpp",
                 "-o",
                 "${workspaceFolder}/build/${fileBasenameNoExtension}",
                 "-I", "/root/projects/vcpkg/installed/x64-linux/include", // Path to SQLiteCpp headers
+                "-I", "${workspaceFolder}/src", // Include your src directory
                 "-L", "/root/projects/vcpkg/installed/x64-linux/lib", // Path to SQLiteCpp library
                 "-lSQLiteCpp", "-lsqlite3", // Link SQLiteCpp and SQLite libraries
                 "-lboost_system",
                 "-lpthread",
-                "-ldl" 
+                "-ldl"
             ],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
                 "$gcc"

@@ -5,6 +5,7 @@
 #include "ServerLogic.h"
 
 namespace beast = boost::beast;
+using tcp = boost::asio::ip::tcp;
 
 class Session : public std::enable_shared_from_this<Session>
 {

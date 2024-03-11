@@ -5,8 +5,11 @@ project(cardsServer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+include_directories(src)
+
 # Add all source files to a variable
-file(GLOB SOURCES "*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 # Specify the target executable and its source files
 add_executable(CardsServer ${SOURCES})

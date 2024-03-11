@@ -61,16 +61,24 @@ use tasks.json
 
 
 ## API Endpoints
-- `POST /cards`: Create a new card.
-- `GET /cards/{cardId}`: Retrieve a specific card by ID.
-- `GET /cards`: Retrieve all cards.
-- `PUT /cards/{cardId}`: Update an existing card.
-- `DELETE /cards/{cardId}`: Delete a specific card.
+- `POST /cards?{folderId}`: Create a new card.
+- `GET /cards/{cardId}?{folderId}`: Retrieve a specific card by ID.
+- `GET /cards?{folderId}`: Retrieve all cards.
+- `PUT /cards/{cardId}?{folderId}`: Update an existing card.
+- `DELETE /cards/{cardId}?{folderId}`: Delete a specific card.
+
+- `POST /folders`: Create a new folder.
+- `GET /folders/{folderId}`: Retrieve a specific folder by ID.
+- `GET /folders`: Retrieve all folders.
+- `PUT /folders/{folderId}`: Update an existing folder.
+- `DELETE /folders/{folderId}?{folderId}`: Delete a specific folder and all cards inside.
+
+
 
 ## Usage Example
 To create a new card:
 
-curl -X POST "http://localhost:8080/cards" \
+curl -X POST "http://localhost:8080/cards?folderId=1" \
      -H "Content-Type: application/json" \
      -H "X-Client-ID: Example Id" \
      -d '{"folderId": 1, "term": "Example Term", "translation": "Example Translation"}'
