@@ -2,12 +2,12 @@
 
 void FolderHandler::handleGetRequest(const http::request<http::string_body> &request,
                                      http::response<http::string_body> &response,
-                                     const std::string &clientId)
+                                     int userId)
 {
-    auto folderIdOpt = Utility::extractIdFromURL(request.target().to_string(), "folder");
+    auto folderIdOpt = Utility::extractIdFromURL(request.target().to_string(), "folders");
     if (folderIdOpt)
     {
-        auto folderOpt = dataService->getFolder(folderIdOpt.value(), clientId);
+        auto folderOpt = dataService->getFolder(folderIdOpt.value(), userId);
         if (folderOpt)
         {
             HttpResponseBuilder::buildJsonResponseForData(response, folderOpt.value());
@@ -19,7 +19,7 @@ void FolderHandler::handleGetRequest(const http::request<http::string_body> &req
     }
     else
     {
-        auto foldersOpt = dataService->getAllFolders(clientId);
+        auto foldersOpt = dataService->getAllFolders(userId);
         if (foldersOpt.has_value())
         {
             HttpResponseBuilder::buildJsonResponseForData(response, foldersOpt.value());
@@ -33,9 +33,9 @@ void FolderHandler::handleGetRequest(const http::request<http::string_body> &req
 
 void FolderHandler::handlePostRequest(const http::request<http::string_body> &request,
                                       http::response<http::string_body> &response,
-                                      const std::string &clientId)
+                                      int userId)
 {
-    auto createResultOpt = dataService->insertFolder(request.body(), clientId);
+    auto createResultOpt = dataService->insertFolder(request.body(), userId);
     if (createResultOpt.has_value())
     {
         HttpResponseBuilder::buildJsonResponseForData(response, createResultOpt.value());
@@ -48,12 +48,12 @@ void FolderHandler::handlePostRequest(const http::request<http::string_body> &re
 
 void FolderHandler::handlePutRequest(const http::request<http::string_body> &request,
                                      http::response<http::string_body> &response,
-                                     const std::string &clientId)
+                                     int userId)
 {
-    auto folderIdOpt = Utility::extractIdFromURL(request.target().to_string(), "folder");
+    auto folderIdOpt = Utility::extractIdFromURL(request.target().to_string(), "folders");
     if (folderIdOpt.has_value())
     {
-        bool updateSuccess = dataService->updateFolder(folderIdOpt.value(), request.body(), clientId);
+        bool updateSuccess = dataService->updateFolder(folderIdOpt.value(), request.body(), userId);
         if (updateSuccess)
         {
             nlohmann::json successJson;
@@ -73,12 +73,12 @@ void FolderHandler::handlePutRequest(const http::request<http::string_body> &req
 
 void FolderHandler::handleDeleteRequest(const http::request<http::string_body> &request,
                                         http::response<http::string_body> &response,
-                                        const std::string &clientId)
+                                        int userId)
 {
-    auto folderIdOpt = Utility::extractIdFromURL(request.target().to_string(), "folder");
+    auto folderIdOpt = Utility::extractIdFromURL(request.target().to_string(), "folders");
     if (folderIdOpt.has_value())
     {
-        bool deletionSuccess = dataService->deleteFolder(folderIdOpt.value(), clientId);
+        bool deletionSuccess = dataService->deleteFolder(folderIdOpt.value(), userId);
         if (deletionSuccess)
         {
             nlohmann::json successJson;

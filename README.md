@@ -82,3 +82,16 @@ curl -X POST "http://localhost:8080/cards?folderId=1" \
      -H "Content-Type: application/json" \
      -H "X-Client-ID: Example Id" \
      -d '{"folderId": 1, "term": "Example Term", "translation": "Example Translation"}'
+
+
+
+
+# TODO
+
+- fix postman post concatenetion
+- move auth token from headers to auth
+- add password hashing
+- add token generation lib
+- check fields length
+- provide proper responses from server (errors)
+- periodically clean up expired sessions as a maintenance task, independent of incoming requests

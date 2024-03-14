@@ -43,7 +43,7 @@ int main()
     try
     {
         asio::io_context ioc;
-        DatabaseAccess dbAccess("database.db");
+        DatabaseAccess dbAccess("cards.db");
         DataService dataService(dbAccess);
         ServerLogic serverLogic(dataService);
         Server server(ioc, 8080, serverLogic);

@@ -9,35 +9,67 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
     response->set(http::field::server, "My HTTP Cards Server");
 
     std::string url = request.target().to_string();
-    DataType type = determineDataType(url);
-    auto handler = getHandlerForType(type);
 
-    auto clientIdOpt = extractClientId(request);
-    if (!clientIdOpt.has_value())
+    if (url.find("/signin") != std::string::npos)
     {
-        // Handle error: Client ID not provided or invalid
-        HttpResponseBuilder::buildJsonResponseForError(*response, "No client id found", http::status::unauthorized);
+        handleLoginRequest(request, *response);
+        response->prepare_payload();
+        return response;
+    }
+    else if (url.find("/signup") != std::string::npos)
+    {
+        handleSignupRequest(request, *response);
         response->prepare_payload();
         return response;
     }
 
-    std::string clientId = clientIdOpt.value();
+    auto toketOpt = getTokenFromRequest(request);
+    if (!toketOpt.has_value())
+    {
+        // Handle authentication failure
+        HttpResponseBuilder::buildJsonResponseForError(*response, "Token is not present in request", http::status::unauthorized);
+        response->prepare_payload();
+        return response;
+    }
+    auto userIdOpt = validateTokenAndGetUserId(toketOpt.value());
+    if (!userIdOpt.has_value())
+    {
+        // Handle authentication failure
+        HttpResponseBuilder::buildJsonResponseForError(*response, "Authentication failed or token expired", http::status::unauthorized);
+        response->prepare_payload();
+        return response;
+    }
+
+    if (url.find("/logout") != std::string::npos)
+    {
+        bool isLogout = dataService.deleteSessionByToken(toketOpt.value());
+
+        isLogout ? HttpResponseBuilder::buildJsonResponseForData(*response, "Loged out") : HttpResponseBuilder::buildJsonResponseForError(*response, "Error during log out");
+
+        response->prepare_payload();
+        return response;
+    }
+
+    DataType type = determineDataType(url);
+    auto handler = getHandlerForType(type);
+
+    int userId = userIdOpt.value();
 
     try
     {
         switch (request.method())
         {
         case http::verb::get:
-            handler->handleGetRequest(request, *response, clientId);
+            handler->handleGetRequest(request, *response, userId);
             break;
         case http::verb::post:
-            handler->handlePostRequest(request, *response, clientId);
+            handler->handlePostRequest(request, *response, userId);
             break;
         case http::verb::put:
-            handler->handlePutRequest(request, *response, clientId);
+            handler->handlePutRequest(request, *response, userId);
             break;
         case http::verb::delete_:
-            handler->handleDeleteRequest(request, *response, clientId);
+            handler->handleDeleteRequest(request, *response, userId);
             break;
         default:
             HttpResponseBuilder::buildJsonResponseForError(*response, "Method not allowed", http::status::method_not_allowed);
@@ -54,30 +86,84 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
     }
 }
 
-std::optional<std::string> ServerLogic::extractClientId(const http::request<http::string_body> &request)
+void ServerLogic::handleLoginRequest(http::request<http::string_body> &request, http::response<http::string_body> &response)
 {
-    auto it = request.find("X-Client-ID");
+    auto loginResultOpt = dataService.loginUser(request.body());
+
+    if (loginResultOpt.has_value())
+    {
+        HttpResponseBuilder::buildJsonResponseForData(response, loginResultOpt.value());
+    }
+    else
+    {
+        HttpResponseBuilder::buildJsonResponseForError(response, "Error during log up", http::status::unauthorized);
+    }
+}
+
+void ServerLogic::handleSignupRequest(http::request<http::string_body> &request, http::response<http::string_body> &response)
+{
+    auto signupResultOpt = dataService.signupUser(request.body());
+
+    if (signupResultOpt.has_value())
+    {
+        HttpResponseBuilder::buildJsonResponseForData(response, signupResultOpt.value());
+    }
+    else
+    {
+        HttpResponseBuilder::buildJsonResponseForError(response, "Error during sign up", http::status::unauthorized);
+    }
+}
+
+std::optional<int> ServerLogic::validateTokenAndGetUserId(const std::string &token)
+{
+    auto session = dataService.getSessionByToken(token);
+    if (!session.has_value())
+    {
+        // Token does not exist
+        return std::nullopt;
+    }
+
+    auto expirationTimePoint = Utility::stringToTimePoint(session.value().expiration);
+    auto now = std::chrono::system_clock::now();
+
+    if (now > expirationTimePoint)
+    {
+        dataService.deleteSessionByToken(token);
+        return std::nullopt;
+    }
+    return session.value().userId;
+}
+
+std::optional<std::string> ServerLogic::getTokenFromRequest(const http::request<http::string_body> &request)
+{
+    // Look for the Authorization header.
+    auto it = request.find(http::field::authorization);
     if (it == request.end())
     {
-        return std::nullopt; // Header not found
-    }
-
-    std::string clientIdStr = std::string(it->value().data(), it->value().size());
-
-    if (clientIdStr.empty())
-    {
-        return std::nullopt; // Header value is empty
-    }
-
-    try
-    {
-        return clientIdStr;
-    }
-    catch (...)
-    {
+        // Authorization header not found.
         return std::nullopt;
-        ;
     }
+
+    // Extract the value of the Authorization header.
+    std::string authHeader = it->value().to_string();
+
+    // Check if the Authorization header value starts with "Bearer ".
+    std::string bearerPrefix = "Bearer ";
+    if (authHeader.substr(0, bearerPrefix.length()) != bearerPrefix)
+    {
+        // The token is not provided in the expected format.
+        return std::nullopt;
+    }
+
+    // Extract the token from the header value.
+    std::string token = authHeader.substr(bearerPrefix.length());
+    if (token.empty())
+    {
+        // Token is empty.
+        return std::nullopt;
+    }
+
+    return token;
 }
 
 DataType ServerLogic::determineDataType(const std::string &url)

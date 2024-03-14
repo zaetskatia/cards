@@ -19,7 +19,13 @@ public:
 private:
     std::unique_ptr<IEntityHandler> getHandlerForType(DataType type);
     DataType determineDataType(const std::string &url);
-    static std::optional<std::string> extractClientId(const http::request<http::string_body> &request);
+
+    void handleLoginRequest(http::request<http::string_body> &request, http::response<http::string_body> &response);
+    void handleSignupRequest(http::request<http::string_body> &request, http::response<http::string_body> &response);
+
+    std::optional<int> validateTokenAndGetUserId(const std::string& token);
+    std::optional<std::string> getTokenFromRequest(const http::request<http::string_body>& request);
+
 
     DataService &dataService;
 };

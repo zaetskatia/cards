@@ -4,7 +4,7 @@
 struct Card
 {
     int id;
-    std::string clientId;
+    int userId;
     int folderId;
     std::string term;
     std::string translation;

@@ -11,7 +11,9 @@ void Session::start()
 
 void Session::doRead()
 {
+    request_ = {};
     auto self = shared_from_this();
+    buffer_.consume(buffer_.size());
     boost::beast::http::async_read(socket_, buffer_, request_,
                                    [this, self](boost::beast::error_code ec, std::size_t)
                                    {

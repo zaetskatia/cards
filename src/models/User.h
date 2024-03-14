@@ -1,9 +1,9 @@
+#pragma once
 #include <string>
 
-struct Folder
+struct User
 {
     int id;
-    int userId;
-    int folderId;
     std::string name;
+    std::string passwordHash;
 };

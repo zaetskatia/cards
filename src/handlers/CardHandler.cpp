@@ -2,7 +2,7 @@
 
 void CardHandler::handleGetRequest(const http::request<http::string_body> &request,
                                    http::response<http::string_body> &response,
-                                   const std::string &clientId)
+                                   int userId)
 {
     auto folderIdOpt = Utility::extractQueryParameter(request.target().to_string(), "folderId");
     if (!folderIdOpt)
@@ -15,7 +15,7 @@ void CardHandler::handleGetRequest(const http::request<http::string_body> &reque
     if (cardIdOpt)
     {
         // Get a specific card within a folder
-        auto card = dataService->getCardInFolder(cardIdOpt.value(), clientId, folderIdOpt.value());
+        auto card = dataService->getCardInFolder(cardIdOpt.value(), userId, folderIdOpt.value());
         if (card)
         {
             HttpResponseBuilder::buildJsonResponseForData(response, card.value());
@@ -28,7 +28,7 @@ void CardHandler::handleGetRequest(const http::request<http::string_body> &reque
     else
     {
         // Get all cards within a folder
-        auto cardsOpt = dataService->getAllCardsInFolder(clientId, folderIdOpt.value());
+        auto cardsOpt = dataService->getAllCardsInFolder(userId, folderIdOpt.value());
         if (cardsOpt.has_value())
         {
             HttpResponseBuilder::buildJsonResponseForData(response, cardsOpt.value());
@@ -42,7 +42,7 @@ void CardHandler::handleGetRequest(const http::request<http::string_body> &reque
 
 void CardHandler::handlePostRequest(const http::request<http::string_body> &request,
                                     http::response<http::string_body> &response,
-                                    const std::string &clientId)
+                                    int userId)
 {
     auto folderIdOpt = Utility::extractQueryParameter(request.target().to_string(), "folderId");
     if (!folderIdOpt)
@@ -51,7 +51,7 @@ void CardHandler::handlePostRequest(const http::request<http::string_body> &requ
         return;
     }
 
-    auto createResultOpt = dataService->insertCardInFolder(request.body(), clientId, folderIdOpt.value());
+    auto createResultOpt = dataService->insertCardInFolder(request.body(), userId, folderIdOpt.value());
     if (createResultOpt.has_value())
     {
         HttpResponseBuilder::buildJsonResponseForData(response, createResultOpt.value());
@@ -64,7 +64,7 @@ void CardHandler::handlePostRequest(const http::request<http::string_body> &requ
 
 void CardHandler::handlePutRequest(const http::request<http::string_body> &request,
                                    http::response<http::string_body> &response,
-                                   const std::string &clientId)
+                                   int userId)
 {
     std::string url = request.target().to_string();
     auto cardIdOpt = Utility::extractIdFromURL(url, "cards");
@@ -76,7 +76,7 @@ void CardHandler::handlePutRequest(const http::request<http::string_body> &reque
         return;
     }
 
-    bool updateSuccess = dataService->updateCardInFolder(cardIdOpt.value(), request.body(), clientId, folderIdOpt.value());
+    bool updateSuccess = dataService->updateCardInFolder(cardIdOpt.value(), request.body(), userId, folderIdOpt.value());
 
     if (updateSuccess)
     {
@@ -92,7 +92,7 @@ void CardHandler::handlePutRequest(const http::request<http::string_body> &reque
 
 void CardHandler::handleDeleteRequest(const http::request<http::string_body> &request,
                                       http::response<http::string_body> &response,
-                                      const std::string &clientId)
+                                      int userId)
 {
     std::string url = request.target().to_string();
     auto cardIdOpt = Utility::extractIdFromURL(url, "cards");
@@ -104,7 +104,7 @@ void CardHandler::handleDeleteRequest(const http::request<http::string_body> &re
         return;
     }
 
-    bool deletionSuccess = dataService->deleteCardInFolder(cardIdOpt.value(), clientId, folderIdOpt.value());
+    bool deletionSuccess = dataService->deleteCardInFolder(cardIdOpt.value(), userId, folderIdOpt.value());
 
     if (deletionSuccess)
     {

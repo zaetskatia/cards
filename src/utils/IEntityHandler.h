@@ -14,19 +14,19 @@ class IEntityHandler
 public:
     virtual void handleGetRequest(const http::request<http::string_body> &request,
                                   http::response<http::string_body> &response,
-                                  const std::string &clientId) = 0;
+                                  int userId) = 0;
 
     virtual void handlePostRequest(const http::request<http::string_body> &request,
                                    http::response<http::string_body> &response,
-                                   const std::string &clientId) = 0;
+                                   int userId) = 0;
 
     virtual void handlePutRequest(const http::request<http::string_body> &request,
                                   http::response<http::string_body> &response,
-                                  const std::string &clientId) = 0;
+                                  int userId) = 0;
 
     virtual void handleDeleteRequest(const http::request<http::string_body> &request,
                                      http::response<http::string_body> &response,
-                                     const std::string &clientId) = 0;
+                                     int userId) = 0;
 
     virtual ~IEntityHandler() = default;
 };
