@@ -22,6 +22,12 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
         response->prepare_payload();
         return response;
     }
+    else if (url.find("/refresh_token") != std::string::npos)
+    {
+        handleTokenRefreshRequest(request, *response);
+        response->prepare_payload();
+        return response;
+    }
 
     auto toketOpt = getTokenFromRequest(request);
     if (!toketOpt.has_value())
@@ -114,23 +120,31 @@ void ServerLogic::handleSignupRequest(http::request<http::string_body> &request,
     }
 }
 
+void ServerLogic::handleTokenRefreshRequest(http::request<http::string_body>& request, http::response<http::string_body>& response) {
+    auto refreshTokenOpt = getTokenFromRequest(request);
+    if (!refreshTokenOpt.has_value()) {
+        HttpResponseBuilder::buildJsonResponseForError(response, "Refresh token is missing", http::status::unauthorized);
+        return;
+    }
+
+    auto newSessionOpt = dataService.refreshUserSession(refreshTokenOpt.value());
+    if (!newSessionOpt.has_value()) {
+        HttpResponseBuilder::buildJsonResponseForError(response, "Failed to refresh session", http::status::unauthorized);
+        return;
+    }
+
+    HttpResponseBuilder::buildJsonResponseForData(response, newSessionOpt.value());
+}
+
 std::optional<int> ServerLogic::validateTokenAndGetUserId(const std::string &token)
 {
     auto session = dataService.getSessionByToken(token);
-    if (!session.has_value())
+    if (!session.has_value() || Utility::isExpiredTime(session.value().expiration))
     {
         // Token does not exist
         return std::nullopt;
     }
-
-    auto expirationTimePoint = Utility::stringToTimePoint(session.value().expiration);
-    auto now = std::chrono::system_clock::now();
-
-    if (now > expirationTimePoint)
-    {
-        dataService.deleteSessionByToken(token);
-        return std::nullopt;
-    }
+    
     return session.value().userId;
 }
 

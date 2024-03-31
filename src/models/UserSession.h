@@ -5,4 +5,6 @@ struct UserSession {
     std::string token;
     int userId;
     std::string expiration;
+    std::string tokenRefresh;
+    std::string expirationRefresh;
 };

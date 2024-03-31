@@ -55,10 +55,10 @@ std::optional<int> Utility::extractQueryParameter(const std::string &query, cons
     return std::nullopt;
 }
 
-std::string Utility::calculateExpirationDateTime(int hours)
+std::string Utility::calculateExpirationDateTime(int minutes)
 {
     auto now = std::chrono::system_clock::now();
-    auto expiration = now + std::chrono::hours(hours);
+    auto expiration = now + std::chrono::minutes(minutes);
     return timePointToString(expiration);
 }
 
@@ -93,4 +93,18 @@ std::chrono::system_clock::time_point Utility::stringToTimePoint(const std::stri
     iss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%SZ"); // Matching ISO 8601 format in UTC
     auto time_t = std::mktime(&tm);                  // Assumes local time. For UTC, consider a different approach or library.
     return std::chrono::system_clock::from_time_t(time_t);
+}
+
+bool Utility::isExpiredTime(const std::string& expirationTime)
+{
+    auto nowInUTC = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    // Convert now to UTC string
+    std::ostringstream oss;
+    oss << std::put_time(std::gmtime(&nowInUTC), "%FT%TZ");
+    auto nowStr = oss.str();
+    // Convert back to time_point for comparison
+    auto nowTimePoint = Utility::stringToTimePoint(nowStr);
+
+    bool isExpired = nowTimePoint > Utility::stringToTimePoint(expirationTime);
+    return isExpired;
 }

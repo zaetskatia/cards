@@ -7,7 +7,6 @@
 #include "handlers/FolderHandler.h"
 #include "services/DataService.h"
 #include "utils/HttpResponseBuilder.h"
-#include "utils/Types.h"
 
 class ServerLogic
 {
@@ -22,6 +21,7 @@ private:
 
     void handleLoginRequest(http::request<http::string_body> &request, http::response<http::string_body> &response);
     void handleSignupRequest(http::request<http::string_body> &request, http::response<http::string_body> &response);
+    void handleTokenRefreshRequest(http::request<http::string_body>& request, http::response<http::string_body>& response);
 
     std::optional<int> validateTokenAndGetUserId(const std::string& token);
     std::optional<std::string> getTokenFromRequest(const http::request<http::string_body>& request);

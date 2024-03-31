@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include "DatabaseAccess.h"
 #include "utils/Utility.h"
+#include "utils/Types.h"
 
 using json = nlohmann::json;
 
@@ -18,6 +19,7 @@ public:
 
     std::optional<UserSession> getSessionByToken(const std::string &token);
     bool deleteSessionByToken(const std::string &token);
+    std::optional<json> refreshUserSession(const std::string &refreshToken);
 
     std::optional<json> getAllCardsInFolder(int userId, int folerId);
     std::optional<json> getAllFolders(int userId);

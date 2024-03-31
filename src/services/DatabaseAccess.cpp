@@ -45,9 +45,11 @@ void DatabaseAccess::initializeDatabase()
 
     const char *createUserSessionTableSql = R"(
         CREATE TABLE IF NOT EXISTS UserSession (
-            token TEXT PRIMARY KEY, 
             user_id INTEGER NOT NULL,
+            token TEXT PRIMARY KEY, 
             expiration DATETIME NOT NULL,
+            tokenRefresh TEXT, 
+            expirationRefresh DATETIME NOT NULL,
             FOREIGN KEY (user_id) REFERENCES Users(id)
         )
     )";
@@ -125,17 +127,19 @@ std::optional<User> DatabaseAccess::createUser(const std::string &username, cons
     }
 }
 
-bool DatabaseAccess::insertSessionToken(int userId, const std::string &token, const std::string &expirationDateTime)
+bool DatabaseAccess::insertSessionToken(int userId, const std::string &token, const std::string &expirationDateTime, const std::string &tokenRefresh, const std::string &expirationDateTimeRefresh)
 {
     try
     {
         std::lock_guard<std::mutex> guard(dbMutex);
         SQLite::Transaction transaction(*db);
 
-        SQLite::Statement query(*db, "INSERT INTO UserSession (token, user_id, expiration) VALUES (?, ?, ?)");
-        query.bind(1, token);
-        query.bind(2, userId);
+        SQLite::Statement query(*db, "INSERT INTO UserSession (user_id, token, expiration, tokenRefresh, expirationRefresh) VALUES (?, ?, ?, ?, ?)");
+        query.bind(1, userId);
+        query.bind(2, token);
         query.bind(3, expirationDateTime);
+        query.bind(4, tokenRefresh);
+        query.bind(5, expirationDateTimeRefresh);
         query.exec();
         transaction.commit();
         return true;
@@ -147,20 +151,23 @@ bool DatabaseAccess::insertSessionToken(int userId, const std::string &token, co
     return false;
 }
 
-std::optional<UserSession> DatabaseAccess::getSessionByToken(const std::string &token)
+std::optional<UserSession> DatabaseAccess::getSessionByToken(const std::string &token, bool isTokenRefresh)
 {
+    std::string key = isTokenRefresh ? "tokenRefresh" : "token";
     try
     {
         std::lock_guard<std::mutex> guard(dbMutex);
-        SQLite::Statement query(*db, "SELECT * FROM UserSession WHERE token = ?");
+        SQLite::Statement query(*db, "SELECT * FROM UserSession WHERE " + key + " = ?");
         query.bind(1, token);
 
         if (query.executeStep())
         {
             UserSession session;
-            session.token = query.getColumn(0).getText();
-            session.userId = query.getColumn(1).getInt();
+            session.userId = query.getColumn(0).getInt();
+            session.token = query.getColumn(1).getText();
             session.expiration = query.getColumn(2).getText();
+            session.tokenRefresh = query.getColumn(3).getText();
+            session.expirationRefresh = query.getColumn(4).getText();
             return session;
         }
     }
@@ -171,12 +178,37 @@ std::optional<UserSession> DatabaseAccess::getSessionByToken(const std::string &
     return std::nullopt;
 }
 
+bool DatabaseAccess::updateSessionToken(const UserSession &session)
+{
+    try
+    {
+        std::lock_guard<std::mutex> guard(dbMutex);
+        SQLite::Transaction transaction(*db);
+
+        SQLite::Statement query(*db, "UPDATE UserSession SET token = ?, expiration = ?, tokenRefresh = ?, expirationRefresh = ? WHERE user_id = ?");
+        query.bind(1, session.token);
+        query.bind(2, session.expiration);
+        query.bind(3, session.tokenRefresh);
+        query.bind(4, session.expirationRefresh);
+        query.bind(5, session.userId);
+        query.exec();
+
+        transaction.commit();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Database exception: " << e.what() << std::endl;
+        return false;
+    }
+    return true;
+}
+
 bool DatabaseAccess::deleteSessionByToken(const std::string &token)
 {
     try
     {
         std::lock_guard<std::mutex> guard(dbMutex);
-         SQLite::Transaction transaction(*db);
+        SQLite::Transaction transaction(*db);
         SQLite::Statement query(*db, "DELETE FROM UserSession WHERE token = ?");
         query.bind(1, token);
         query.exec();
@@ -186,6 +218,26 @@ bool DatabaseAccess::deleteSessionByToken(const std::string &token)
     catch (const std::exception &e)
     {
         std::cerr << "Failed to delete session token: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool DatabaseAccess::invalidateUserRefreshTokens(int userId) {
+    try {
+        std::lock_guard<std::mutex> guard(dbMutex);
+        SQLite::Transaction transaction(*db);
+
+        // Prepare a SQL statement to delete the user's refresh tokens
+        SQLite::Statement query(*db, "DELETE FROM UserSession WHERE user_id = ?");
+        query.bind(1, userId);
+
+        // Execute the query
+        query.exec();
+        transaction.commit();
+
+        return true;
+    } catch (const std::exception &e) {
+        std::cerr << "Database exception in invalidateUserRefreshTokens: " << e.what() << std::endl;
         return false;
     }
 }

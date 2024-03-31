@@ -2,16 +2,23 @@
 
 std::optional<json> DataService::createUserSession(const User &user)
 {
-    std::string sessionToken = Utility::generateSessionToken();
-    std::string expirationDateTime = Utility::calculateExpirationDateTime(24);
-    bool tokenInserted = dbAccess.insertSessionToken(user.id, sessionToken, expirationDateTime);
-    if (!tokenInserted)
+    std::string accessToken = Utility::generateSessionToken();
+    std::string refreshToken = Utility::generateSessionToken();
+    std::string accessExpirationDateTime = Utility::calculateExpirationDateTime(2);
+    std::string refreshExpirationDateTime = Utility::calculateExpirationDateTime(24 * 60 * 30);
+
+    // Insert both tokens into the database with their expiration times
+    bool tokensInserted = dbAccess.insertSessionToken(user.id, accessToken, accessExpirationDateTime, refreshToken, refreshExpirationDateTime);
+    if (!tokensInserted)
     {
         return std::nullopt; // Handle token insertion failure
     }
+
     json response;
-    response["token"] = sessionToken;
-    response["expires"] = expirationDateTime;
+    response["accessToken"] = accessToken;
+    response["accessTokenExpires"] = accessExpirationDateTime;
+    response["refreshToken"] = refreshToken;
+    response["refreshTokenExpires"] = refreshExpirationDateTime;
     return response;
 }
 
@@ -20,11 +27,49 @@ std::optional<UserSession> DataService::getSessionByToken(const std::string &tok
     return dbAccess.getSessionByToken(token);
 }
 
+std::optional<json> DataService::refreshUserSession(const std::string &refreshToken)
+{
+    auto sessionOpt = dbAccess.getSessionByToken(refreshToken, true);
+
+    if (!sessionOpt.has_value() || Utility::isExpiredTime(sessionOpt.value().expirationRefresh))
+    {
+        return std::nullopt; // Refresh token is invalid or expired
+    }
+
+    auto session = sessionOpt.value();
+
+    // Generate new tokens
+    session.token = Utility::generateSessionToken();
+    session.expiration = Utility::calculateExpirationDateTime(2);
+    session.tokenRefresh = Utility::generateSessionToken();
+    session.expirationRefresh = Utility::calculateExpirationDateTime(24 * 30 * 60);
+
+    // Update the session in the database with new tokens and their expiration times
+    bool updateSuccess = dbAccess.updateSessionToken(session);
+    if (!updateSuccess)
+    {
+        return std::nullopt; // Failed to update the session
+    }
+
+    // Prepare and return the response with new tokens
+    json response;
+    response["accessToken"] = session.token;
+    response["accessTokenExpires"] = session.expiration;
+    response["refreshToken"] = session.tokenRefresh;
+    response["refreshTokenExpires"] =  session.expirationRefresh;
+    return response;
+}
+
 std::optional<json> DataService::loginUser(const std::string &userData)
 {
     json data = json::parse(userData);
     std::string username = data["username"];
     std::string password = data["password"];
+
+    if (username.length() > maxUsernameLength || password.length() > maxPasswordLength)
+    {
+        return std::nullopt;
+    }
 
     auto userOpt = dbAccess.getUserByUsername(username);
     if (!userOpt.has_value())
@@ -42,6 +87,9 @@ std::optional<json> DataService::loginUser(const std::string &userData)
         return std::nullopt; // Passwords do not match
     }
 
+    // Invalidate any existing refresh tokens for the user as a security measure
+    dbAccess.invalidateUserRefreshTokens(userOpt.value().id);
+
     return createUserSession(userOpt.value());
 }
 
@@ -50,6 +98,11 @@ std::optional<json> DataService::signupUser(const std::string &userData)
     json dataJson = json::parse(userData);
     std::string username = dataJson["username"];
     std::string password = dataJson["password"];
+
+    if (username.length() > maxUsernameLength || password.length() > maxPasswordLength)
+    {
+        return std::nullopt;
+    }
 
     if (dbAccess.getUserByUsername(username).has_value())
     {
@@ -83,7 +136,7 @@ std::optional<json> DataService::getAllCardsInFolder(int userId, int folderId)
         nlohmann::json cardsJson = nlohmann::json::array();
         for (const auto &card : cards)
         {
-            cardsJson.push_back({{"id", card.id}, {"term", card.term}, {"translation", card.translation}});
+            cardsJson.push_back(convertCardToJson(card));
         }
         return cardsJson;
     }
@@ -98,7 +151,7 @@ std::optional<json> DataService::getAllFolders(int userId)
         nlohmann::json foldersJson = nlohmann::json::array();
         for (const auto &folder : folders)
         {
-            foldersJson.push_back({{"id", folder.id}, {"name", folder.name}});
+            foldersJson.push_back(convertFolderToJson(folder));
         }
         return foldersJson;
     }
@@ -197,9 +250,17 @@ std::optional<Card> DataService::convertToCard(const std::string &cardData, int 
     {
         auto j = json::parse(cardData);
 
+        std::string term = j.at("term").get<std::string>();
+        std::string translation = j.at("translation").get<std::string>();
+
+        if (term.length() > maxTermLength || translation.length() > maxTranslationLength)
+        {
+            return std::nullopt; // TODO handle errors message to server
+        }
+
         Card res{};
-        res.term = j["term"];
-        res.translation = j["translation"];
+        res.term = term;
+        res.translation = translation;
         res.folderId = folderId;
         return res;
     }
@@ -214,9 +275,13 @@ std::optional<Folder> DataService::convertToFolder(const std::string &folderData
     try
     {
         auto j = json::parse(folderData);
-
+        std::string name = j.at("name").get<std::string>();
+        if (name.length() > maxFolderNameLength)
+        {
+            return std::nullopt; // TODO handle errors message to server
+        }
         Folder res{};
-        res.name = j["name"];
+        res.name = name;
         return res;
     }
     catch (const json::parse_error &e)

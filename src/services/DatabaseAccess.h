@@ -14,9 +14,11 @@ public:
     DatabaseAccess(const std::string &dbPath);
 
 
-    bool insertSessionToken(int userId, const std::string &token, const std::string &expirationDateTime);
-    std::optional<UserSession> getSessionByToken(const std::string &token);
+    bool insertSessionToken(int userId, const std::string &token, const std::string &expirationDateTime, const std::string &tokenRefresh, const std::string &expirationDateTimeRefresh);
+    std::optional<UserSession> getSessionByToken(const std::string &token, bool isTokenRefresh = false);
     bool deleteSessionByToken(const std::string &token);
+    bool updateSessionToken(const UserSession &session);
+    bool invalidateUserRefreshTokens(int userId);
 
     std::optional<User> createUser(const std::string &username, const std::string &passwordHash);
     std::optional<User> getUserByUsername(const std::string &username);
