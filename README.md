@@ -88,10 +88,13 @@ curl -X POST "http://localhost:8080/cards?folderId=1" \
 
 # TODO
 
-- fix postman post concatenetion
 - move auth token from headers to auth
 - add password hashing
 - add token generation lib
 - check fields length
-- provide proper responses from server (errors)
+*- provide proper responses from server (errors)
 - periodically clean up expired sessions as a maintenance task, independent of incoming requests
+*- google auth
+- react on refresh tocken expiration (send error code and show login page to user)
+
+-test on several devices (add possibility use one accoutn on several devices)

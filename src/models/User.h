@@ -3,7 +3,14 @@
 
 struct User
 {
-    int id;
-    std::string name;
-    std::string passwordHash;
+    int id{};
+    std::string googleId{};
+    std::string name{};
+    std::string passwordHash{};
+};
+
+struct GoogleUserInfo
+{
+    std::string googleId{};
+    std::string name{};
 };

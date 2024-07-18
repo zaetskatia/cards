@@ -20,8 +20,9 @@ public:
     bool updateSessionToken(const UserSession &session);
     bool invalidateUserRefreshTokens(int userId);
 
-    std::optional<User> createUser(const std::string &username, const std::string &passwordHash);
+    std::optional<User> createUser(User& user);
     std::optional<User> getUserByUsername(const std::string &username);
+    std::optional<User> getUserByGoogleId(const std::string &googleId);
 
     std::optional<Card> insertCard(const Card &card);
     std::optional<Card> getCard(int cardId, int userId, int folderId);
@@ -39,4 +40,5 @@ private:
     void initializeDatabase();
     std::unique_ptr<SQLite::Database> db;
     std::mutex dbMutex;
+    bool folderExists(int folderId);
 };

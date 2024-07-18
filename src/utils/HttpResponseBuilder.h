@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/core.hpp>
+#include "utils/Types.h"
 
 namespace http = boost::beast::http;
 using json = nlohmann::json;
@@ -18,7 +19,7 @@ public:
 
     static void buildJsonResponseForError(
         http::response<http::string_body> &response,
-        const std::string &errorMessage,
+        const ErrorCode errorMessage,
         http::status status = http::status::internal_server_error);
 
 private:

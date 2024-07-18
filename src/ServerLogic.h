@@ -19,13 +19,14 @@ private:
     std::unique_ptr<IEntityHandler> getHandlerForType(DataType type);
     DataType determineDataType(const std::string &url);
 
+    void handleGoogleSignIn(http::request<http::string_body> &request, http::response<http::string_body> &response);
     void handleLoginRequest(http::request<http::string_body> &request, http::response<http::string_body> &response);
     void handleSignupRequest(http::request<http::string_body> &request, http::response<http::string_body> &response);
     void handleTokenRefreshRequest(http::request<http::string_body>& request, http::response<http::string_body>& response);
 
-    std::optional<int> validateTokenAndGetUserId(const std::string& token);
+    std::pair<ErrorCode,int> validateTokenAndGetUserId(const std::string& token);
     std::optional<std::string> getTokenFromRequest(const http::request<http::string_body>& request);
-
+    std::optional<GoogleUserInfo> verifyGoogleToken(const std::string& idToken);
 
     DataService &dataService;
 };

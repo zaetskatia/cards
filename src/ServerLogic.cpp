@@ -1,5 +1,6 @@
 #include <iostream>
 #include <optional>
+#include <jwt-cpp/jwt.h>
 #include "ServerLogic.h"
 
 std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(http::request<http::string_body> &request)
@@ -10,6 +11,12 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
 
     std::string url = request.target().to_string();
 
+    if (url.find("/google_signin") != std::string::npos)
+    {
+        handleGoogleSignIn(request, *response);
+        response->prepare_payload();
+        return response;
+    }
     if (url.find("/signin") != std::string::npos)
     {
         handleLoginRequest(request, *response);
@@ -33,15 +40,15 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
     if (!toketOpt.has_value())
     {
         // Handle authentication failure
-        HttpResponseBuilder::buildJsonResponseForError(*response, "Token is not present in request", http::status::unauthorized);
+        HttpResponseBuilder::buildJsonResponseForError(*response, ErrorCode::TokenIsNotExist, http::status::unauthorized);
         response->prepare_payload();
         return response;
     }
-    auto userIdOpt = validateTokenAndGetUserId(toketOpt.value());
-    if (!userIdOpt.has_value())
+    auto userIdPair = validateTokenAndGetUserId(toketOpt.value());
+    if (userIdPair.first != ErrorCode::None)
     {
         // Handle authentication failure
-        HttpResponseBuilder::buildJsonResponseForError(*response, "Authentication failed or token expired", http::status::unauthorized);
+        HttpResponseBuilder::buildJsonResponseForError(*response, userIdPair.first, http::status::unauthorized);
         response->prepare_payload();
         return response;
     }
@@ -50,7 +57,7 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
     {
         bool isLogout = dataService.deleteSessionByToken(toketOpt.value());
 
-        isLogout ? HttpResponseBuilder::buildJsonResponseForData(*response, "Loged out") : HttpResponseBuilder::buildJsonResponseForError(*response, "Error during log out");
+        isLogout ? HttpResponseBuilder::buildJsonResponseForData(*response, "Loged out") : HttpResponseBuilder::buildJsonResponseForError(*response, ErrorCode::LogoutError);
 
         response->prepare_payload();
         return response;
@@ -59,7 +66,7 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
     DataType type = determineDataType(url);
     auto handler = getHandlerForType(type);
 
-    int userId = userIdOpt.value();
+    int userId = userIdPair.second;
 
     try
     {
@@ -78,7 +85,7 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
             handler->handleDeleteRequest(request, *response, userId);
             break;
         default:
-            HttpResponseBuilder::buildJsonResponseForError(*response, "Method not allowed", http::status::method_not_allowed);
+            HttpResponseBuilder::buildJsonResponseForError(*response, ErrorCode::MethodNotAllowed, http::status::method_not_allowed);
         }
 
         response->prepare_payload();
@@ -86,66 +93,102 @@ std::shared_ptr<http::response<http::string_body>> ServerLogic::handleRequest(ht
     }
     catch (const std::exception &e)
     {
-        HttpResponseBuilder::buildJsonResponseForError(*response, "Undefined error", http::status::internal_server_error);
+        HttpResponseBuilder::buildJsonResponseForError(*response, ErrorCode::Undefined, http::status::internal_server_error);
         response->prepare_payload();
         return response;
     }
 }
 
-void ServerLogic::handleLoginRequest(http::request<http::string_body> &request, http::response<http::string_body> &response)
+void ServerLogic::handleGoogleSignIn(http::request<http::string_body> &request, http::response<http::string_body> &response)
 {
-    auto loginResultOpt = dataService.loginUser(request.body());
-
-    if (loginResultOpt.has_value())
+    auto idTokenOpt = getTokenFromRequest(request);
+    if (!idTokenOpt.has_value())
     {
-        HttpResponseBuilder::buildJsonResponseForData(response, loginResultOpt.value());
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::TokenIsNotExist, http::status::bad_request);
+        return;
+    }
+
+    // TODO add user info get method
+    auto userInfoOpt = verifyGoogleToken(idTokenOpt.value());
+    if (!userInfoOpt.has_value())
+    {
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::TokenIsInvalid, http::status::unauthorized);
+        return;
+    }
+
+    // Process user info, check if user exists, create new user if not
+    auto userSessionResultPair = dataService.createOrUpdateGoogleUserSession(userInfoOpt.value());
+    if (userSessionResultPair.first == ErrorCode::None)
+    {
+        HttpResponseBuilder::buildJsonResponseForData(response, userSessionResultPair.second);
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Error during log up", http::status::unauthorized);
+        HttpResponseBuilder::buildJsonResponseForError(response, userSessionResultPair.first, http::status::internal_server_error);
+    }
+}
+
+void ServerLogic::handleLoginRequest(http::request<http::string_body> &request, http::response<http::string_body> &response)
+{
+    auto loginResultPair = dataService.loginUser(request.body());
+
+    if (loginResultPair.first == ErrorCode::None)
+    {
+        HttpResponseBuilder::buildJsonResponseForData(response, loginResultPair.second);
+    }
+    else
+    {
+        HttpResponseBuilder::buildJsonResponseForError(response, loginResultPair.first, http::status::unauthorized);
     }
 }
 
 void ServerLogic::handleSignupRequest(http::request<http::string_body> &request, http::response<http::string_body> &response)
 {
-    auto signupResultOpt = dataService.signupUser(request.body());
+    auto signupResultPair = dataService.signupUser(request.body());
 
-    if (signupResultOpt.has_value())
+    if (signupResultPair.first == ErrorCode::None)
     {
-        HttpResponseBuilder::buildJsonResponseForData(response, signupResultOpt.value());
+        HttpResponseBuilder::buildJsonResponseForData(response, signupResultPair.second);
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Error during sign up", http::status::unauthorized);
+        HttpResponseBuilder::buildJsonResponseForError(response, signupResultPair.first, http::status::unauthorized);
     }
 }
 
-void ServerLogic::handleTokenRefreshRequest(http::request<http::string_body>& request, http::response<http::string_body>& response) {
+void ServerLogic::handleTokenRefreshRequest(http::request<http::string_body> &request, http::response<http::string_body> &response)
+{
     auto refreshTokenOpt = getTokenFromRequest(request);
-    if (!refreshTokenOpt.has_value()) {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Refresh token is missing", http::status::unauthorized);
+    if (!refreshTokenOpt.has_value())
+    {
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::TokenIsNotExist, http::status::unauthorized);
         return;
     }
 
     auto newSessionOpt = dataService.refreshUserSession(refreshTokenOpt.value());
-    if (!newSessionOpt.has_value()) {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Failed to refresh session", http::status::unauthorized);
+    if (!newSessionOpt.has_value())
+    {
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::TokenExpired, http::status::unauthorized);
         return;
     }
 
     HttpResponseBuilder::buildJsonResponseForData(response, newSessionOpt.value());
 }
 
-std::optional<int> ServerLogic::validateTokenAndGetUserId(const std::string &token)
+std::pair<ErrorCode, int> ServerLogic::validateTokenAndGetUserId(const std::string &token)
 {
     auto session = dataService.getSessionByToken(token);
-    if (!session.has_value() || Utility::isExpiredTime(session.value().expiration))
+    if (!session.has_value())
     {
         // Token does not exist
-        return std::nullopt;
+        return std::make_pair(ErrorCode::TokenIsNotExist, 0);
     }
-    
-    return session.value().userId;
+    if (Utility::isExpiredTime(session.value().expiration))
+    {
+        return std::make_pair(ErrorCode::TokenExpired, 0);
+    }
+
+    return std::make_pair(ErrorCode::None, session.value().userId);
 }
 
 std::optional<std::string> ServerLogic::getTokenFromRequest(const http::request<http::string_body> &request)
@@ -178,6 +221,53 @@ std::optional<std::string> ServerLogic::getTokenFromRequest(const http::request<
     }
 
     return token;
+}
+
+std::optional<GoogleUserInfo> ServerLogic::verifyGoogleToken(const std::string &idToken)
+{
+    try
+    {
+        // Verify the token signature and claims
+        auto decoded = jwt::decode(idToken);
+
+        // Verify the issuer and audience
+        auto issuer = decoded.get_issuer();
+        auto audience = decoded.get_audience();
+
+        if (issuer != "https://accounts.google.com" && issuer != "accounts.google.com")
+        {
+            std::cerr << "Invalid issuer." << std::endl;
+            return std::nullopt;
+        }
+
+        bool audienceContainsPrefix = false;
+        for (const auto &aud : audience)
+        {
+            if (aud.find("apps.googleusercontent.com") != std::string::npos)
+            {
+                audienceContainsPrefix = true;
+                break; // Stop searching once we find a match
+            }
+        }
+
+        if (!audienceContainsPrefix)
+        {
+            std::cerr << "Invalid audience." << std::endl;
+            return std::nullopt;
+        }
+
+        // Extract user information
+        GoogleUserInfo userInfo;
+        userInfo.googleId = decoded.get_payload_claim("sub").as_string();
+        userInfo.name = userInfo.googleId; //as name is unique now //decoded.get_payload_claim("name").as_string();
+
+        return userInfo;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Failed to verify Google ID Token: " << e.what() << std::endl;
+        return std::nullopt;
+    }
 }
 
 DataType ServerLogic::determineDataType(const std::string &url)

@@ -1,6 +1,6 @@
 #include "DataService.h"
 
-std::optional<json> DataService::createUserSession(const User &user)
+std::pair<ErrorCode,json> DataService::createUserSession(const User &user)
 {
     std::string accessToken = Utility::generateSessionToken();
     std::string refreshToken = Utility::generateSessionToken();
@@ -11,7 +11,7 @@ std::optional<json> DataService::createUserSession(const User &user)
     bool tokensInserted = dbAccess.insertSessionToken(user.id, accessToken, accessExpirationDateTime, refreshToken, refreshExpirationDateTime);
     if (!tokensInserted)
     {
-        return std::nullopt; // Handle token insertion failure
+        return std::make_pair(ErrorCode::TokenInsertionFailure, nullptr); // Handle token insertion failure
     }
 
     json response;
@@ -19,8 +19,29 @@ std::optional<json> DataService::createUserSession(const User &user)
     response["accessTokenExpires"] = accessExpirationDateTime;
     response["refreshToken"] = refreshToken;
     response["refreshTokenExpires"] = refreshExpirationDateTime;
-    return response;
+    return std::make_pair(ErrorCode::None, response);
 }
+
+std::pair<ErrorCode, json> DataService::createOrUpdateGoogleUserSession(const GoogleUserInfo& googleUser) {
+    auto userOpt = dbAccess.getUserByGoogleId(googleUser.googleId);
+    User user;
+
+    if (!userOpt.has_value()) {
+        user.googleId = googleUser.googleId;
+        user.name = googleUser.name;
+
+        auto newUserOpt = dbAccess.createUser(user);
+        if (!newUserOpt.has_value()) {
+            return std::make_pair(ErrorCode::UserCreationFailure, nullptr);
+        }
+        user = newUserOpt.value();
+    } else {
+        user = userOpt.value();
+    }
+
+    return createUserSession(user);
+}
+
 
 std::optional<UserSession> DataService::getSessionByToken(const std::string &token)
 {
@@ -60,7 +81,7 @@ std::optional<json> DataService::refreshUserSession(const std::string &refreshTo
     return response;
 }
 
-std::optional<json> DataService::loginUser(const std::string &userData)
+std::pair<ErrorCode,json> DataService::loginUser(const std::string &userData)
 {
     json data = json::parse(userData);
     std::string username = data["username"];
@@ -68,14 +89,14 @@ std::optional<json> DataService::loginUser(const std::string &userData)
 
     if (username.length() > maxUsernameLength || password.length() > maxPasswordLength)
     {
-        return std::nullopt;
+        return std::make_pair(ErrorCode::MaxLenReached, nullptr);
     }
 
     auto userOpt = dbAccess.getUserByUsername(username);
     if (!userOpt.has_value())
     {
         // Handle user not found
-        return std::nullopt;
+        return std::make_pair(ErrorCode::UserNotFound, nullptr);
     }
 
     // TODO Use hash function later
@@ -84,7 +105,7 @@ std::optional<json> DataService::loginUser(const std::string &userData)
 
     if (hashedPassword != userOpt.value().passwordHash)
     {
-        return std::nullopt; // Passwords do not match
+        return std::make_pair(ErrorCode::PassDoNotMatch, nullptr);  // Passwords do not match
     }
 
     // Invalidate any existing refresh tokens for the user as a security measure
@@ -93,7 +114,7 @@ std::optional<json> DataService::loginUser(const std::string &userData)
     return createUserSession(userOpt.value());
 }
 
-std::optional<json> DataService::signupUser(const std::string &userData)
+std::pair<ErrorCode,json> DataService::signupUser(const std::string &userData)
 {
     json dataJson = json::parse(userData);
     std::string username = dataJson["username"];
@@ -101,23 +122,27 @@ std::optional<json> DataService::signupUser(const std::string &userData)
 
     if (username.length() > maxUsernameLength || password.length() > maxPasswordLength)
     {
-        return std::nullopt;
+        return std::make_pair(ErrorCode::MaxLenReached, nullptr);
     }
 
     if (dbAccess.getUserByUsername(username).has_value())
     {
-        return std::nullopt; // Username already exists
+        return std::make_pair(ErrorCode::UsernameAlreadyExists, nullptr); // Username already exists
     }
 
     // TODO Use hash function later
     // std::string hashedPassword = Utility::hashPassword(password); Use hash function later
     std::string hashedPassword = password;
 
-    auto newUserOpt = dbAccess.createUser(username, hashedPassword);
+    User user;
+    user.passwordHash = hashedPassword;
+    user.name = username;
+
+    auto newUserOpt = dbAccess.createUser(user);
     if (!newUserOpt.has_value())
     {
         // Handle user creation failure
-        return std::nullopt;
+        return std::make_pair(ErrorCode::UserCreationFailure, nullptr);
     }
 
     return createUserSession(newUserOpt.value());

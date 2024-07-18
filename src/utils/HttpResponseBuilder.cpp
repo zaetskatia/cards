@@ -10,11 +10,11 @@ void HttpResponseBuilder::buildJsonResponseForData(http::response<http::string_b
     return buildJsonResponse(response, responseJson, status);
 }
 
-void HttpResponseBuilder::buildJsonResponseForError(http::response<http::string_body> &response, const std::string &errorMessage, http::status status)
+void HttpResponseBuilder::buildJsonResponseForError(http::response<http::string_body> &response, const ErrorCode errorMessage, http::status status)
 {
     nlohmann::json responseJson = {
         {"status", "error"},
-        {"message", errorMessage}};
+        {"errorCode", errorMessage}};
 
     return buildJsonResponse(response, responseJson, status);
 }

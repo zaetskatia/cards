@@ -14,11 +14,13 @@
                 "${workspaceFolder}/build/${fileBasenameNoExtension}",
                 "-I", "/root/projects/vcpkg/installed/x64-linux/include", // Path to SQLiteCpp headers
                 "-I", "${workspaceFolder}/src", // Include your src directory
+                "-I", "/usr/include", // Additional include directory for OpenSSL
                 "-L", "/root/projects/vcpkg/installed/x64-linux/lib", // Path to SQLiteCpp library
                 "-lSQLiteCpp", "-lsqlite3", // Link SQLiteCpp and SQLite libraries
                 "-lboost_system",
                 "-lpthread",
-                "-ldl"
+                "-ldl",
+                "-lcrypto" // Link the crypto library if jwt-cpp depends on it
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

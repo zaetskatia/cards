@@ -14,7 +14,7 @@ void FolderHandler::handleGetRequest(const http::request<http::string_body> &req
         }
         else
         {
-            HttpResponseBuilder::buildJsonResponseForError(response, "Folder not found", http::status::not_found);
+            HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::FolderNotFound, http::status::not_found);
         }
     }
     else
@@ -26,7 +26,7 @@ void FolderHandler::handleGetRequest(const http::request<http::string_body> &req
         }
         else
         {
-            HttpResponseBuilder::buildJsonResponseForError(response, "No folders found", http::status::not_found);
+            HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::FolderNotFound, http::status::not_found);
         }
     }
 }
@@ -42,7 +42,7 @@ void FolderHandler::handlePostRequest(const http::request<http::string_body> &re
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Failed to create folder", http::status::internal_server_error);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::FailedToCreateFolder, http::status::internal_server_error);
     }
 }
 
@@ -62,12 +62,12 @@ void FolderHandler::handlePutRequest(const http::request<http::string_body> &req
         }
         else
         {
-            HttpResponseBuilder::buildJsonResponseForError(response, "Failed to update folder", http::status::not_found);
+            HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::FailedToUpdateFolder, http::status::not_found);
         }
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Invalid folder ID", http::status::bad_request);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::InvalidFolderId, http::status::bad_request);
     }
 }
 
@@ -87,11 +87,11 @@ void FolderHandler::handleDeleteRequest(const http::request<http::string_body> &
         }
         else
         {
-            HttpResponseBuilder::buildJsonResponseForError(response, "Failed to delete folder", http::status::not_found);
+            HttpResponseBuilder::buildJsonResponseForError(response,  ErrorCode::FailedToDeleteFolder, http::status::not_found);
         }
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Invalid folder ID", http::status::bad_request);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::NoFolderId, http::status::bad_request);
     }
 }

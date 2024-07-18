@@ -14,8 +14,10 @@ class DataService
 public:
     DataService(DatabaseAccess &dbAccess) : dbAccess(dbAccess) {}
 
-    std::optional<json> loginUser(const std::string &userData);
-    std::optional<json> signupUser(const std::string &userData);
+    std::pair<ErrorCode,json> loginUser(const std::string &userData);
+    std::pair<ErrorCode,json> signupUser(const std::string &userData);
+
+    std::pair<ErrorCode, json> createOrUpdateGoogleUserSession(const GoogleUserInfo& googleUser);
 
     std::optional<UserSession> getSessionByToken(const std::string &token);
     bool deleteSessionByToken(const std::string &token);
@@ -33,7 +35,7 @@ public:
     bool deleteFolder(int folderId, int userId);
 
 private:
-    std::optional<json> createUserSession(const User &user);
+    std::pair<ErrorCode,json> createUserSession(const User &user);
     std::optional<Card> convertToCard(const std::string &cardData, int folderId);
     std::optional<Folder> convertToFolder(const std::string &folderData);
     nlohmann::json convertCardToJson(const Card &card);

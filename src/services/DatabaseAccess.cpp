@@ -39,7 +39,8 @@ void DatabaseAccess::initializeDatabase()
         CREATE TABLE IF NOT EXISTS Users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL
+            password_hash TEXT NOT NULL,
+            google_id TEXT UNIQUE
         )
     )";
 
@@ -99,26 +100,43 @@ std::optional<User> DatabaseAccess::getUserByUsername(const std::string &usernam
     return std::nullopt;
 }
 
-std::optional<User> DatabaseAccess::createUser(const std::string &username, const std::string &passwordHash)
+std::optional<User> DatabaseAccess::getUserByGoogleId(const std::string &googleId) {
+    try {
+        std::lock_guard<std::mutex> guard(dbMutex);
+        SQLite::Statement query(*db, "SELECT id, username, google_id FROM Users WHERE google_id = ?");
+        query.bind(1, googleId);
+
+        if (query.executeStep()) {
+            User user;
+            user.id = query.getColumn(0).getInt();
+            user.name = query.getColumn(1).getText();
+            user.googleId = query.getColumn(2).getText();
+            return std::make_optional(user);
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "Failed to retrieve user by Google ID: " << e.what() << std::endl;
+    }
+    return std::nullopt;
+}
+
+std::optional<User> DatabaseAccess::createUser(User& user)
 {
     try
     {
         std::lock_guard<std::mutex> guard(dbMutex);
         SQLite::Transaction transaction(*db);
 
-        SQLite::Statement query(*db, "INSERT INTO Users (username, password_hash) VALUES (?, ?)");
-        query.bind(1, username);
-        query.bind(2, passwordHash);
+        SQLite::Statement query(*db, "INSERT INTO Users (username, password_hash, google_id) VALUES (?, ?, ?)");
+        query.bind(1, user.name);
+        query.bind(2, user.passwordHash);
+        query.bind(3, user.googleId);
         query.exec();
 
         int lastId = db->getLastInsertRowid();
         transaction.commit();
 
-        User newUser;
-        newUser.id = lastId;
-        newUser.name = username;
-        newUser.passwordHash = passwordHash;
-        return std::make_optional(newUser);
+        user.id = lastId;
+        return std::make_optional(user);
     }
     catch (const std::exception &e)
     {
@@ -222,8 +240,10 @@ bool DatabaseAccess::deleteSessionByToken(const std::string &token)
     }
 }
 
-bool DatabaseAccess::invalidateUserRefreshTokens(int userId) {
-    try {
+bool DatabaseAccess::invalidateUserRefreshTokens(int userId)
+{
+    try
+    {
         std::lock_guard<std::mutex> guard(dbMutex);
         SQLite::Transaction transaction(*db);
 
@@ -236,14 +256,43 @@ bool DatabaseAccess::invalidateUserRefreshTokens(int userId) {
         transaction.commit();
 
         return true;
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         std::cerr << "Database exception in invalidateUserRefreshTokens: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool DatabaseAccess::folderExists(int folderId)
+{
+    try
+    {
+        std::lock_guard<std::mutex> guard(dbMutex);
+        SQLite::Statement query(*db, "SELECT COUNT(1) FROM Folders WHERE id = ?");
+        query.bind(1, folderId);
+
+        if (query.executeStep())
+        {
+            return query.getColumn(0).getInt() > 0;
+        }
+        return false;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Database exception in folderExists: " << e.what() << std::endl;
         return false;
     }
 }
 
 std::optional<Card> DatabaseAccess::insertCard(const Card &card)
 {
+    if (!folderExists(card.folderId))
+    {
+        std::cerr << "Attempted to insert a card into a non-existent folder." << std::endl;
+        return std::nullopt; // Early return if the folder does not exist
+    }
+
     try
     {
         std::lock_guard<std::mutex> guard(dbMutex);

@@ -7,7 +7,7 @@ void CardHandler::handleGetRequest(const http::request<http::string_body> &reque
     auto folderIdOpt = Utility::extractQueryParameter(request.target().to_string(), "folderId");
     if (!folderIdOpt)
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Folder ID must be provided for card operations", http::status::bad_request);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::NoFolderId, http::status::bad_request);
         return;
     }
 
@@ -22,7 +22,7 @@ void CardHandler::handleGetRequest(const http::request<http::string_body> &reque
         }
         else
         {
-            HttpResponseBuilder::buildJsonResponseForError(response, "Card not found in the specified folder", http::status::not_found);
+            HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::CardNotFound, http::status::not_found);
         }
     }
     else
@@ -35,7 +35,7 @@ void CardHandler::handleGetRequest(const http::request<http::string_body> &reque
         }
         else
         {
-            HttpResponseBuilder::buildJsonResponseForError(response, "No cards found in the folder", http::status::not_found);
+            HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::FolderIsEmpty, http::status::not_found);
         }
     }
 }
@@ -47,7 +47,7 @@ void CardHandler::handlePostRequest(const http::request<http::string_body> &requ
     auto folderIdOpt = Utility::extractQueryParameter(request.target().to_string(), "folderId");
     if (!folderIdOpt)
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Folder ID must be provided to create a card", http::status::bad_request);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::NoFolderId, http::status::bad_request);
         return;
     }
 
@@ -58,7 +58,7 @@ void CardHandler::handlePostRequest(const http::request<http::string_body> &requ
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Failed to create card in the specified folder", http::status::internal_server_error);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::FailedToCreateCard, http::status::internal_server_error);
     }
 }
 
@@ -72,7 +72,7 @@ void CardHandler::handlePutRequest(const http::request<http::string_body> &reque
 
     if (!cardIdOpt.has_value() || !folderIdOpt.has_value())
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Invalid request parameters", http::status::bad_request);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::InvalidRequestParameters, http::status::bad_request);
         return;
     }
 
@@ -86,7 +86,7 @@ void CardHandler::handlePutRequest(const http::request<http::string_body> &reque
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Card with ID: " + std::to_string(cardIdOpt.value()) + " not found in folder", http::status::not_found);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::CardNotFound, http::status::not_found);
     }
 }
 
@@ -100,7 +100,7 @@ void CardHandler::handleDeleteRequest(const http::request<http::string_body> &re
 
     if (!cardIdOpt.has_value() || !folderIdOpt.has_value())
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Invalid request parameters", http::status::bad_request);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::InvalidRequestParameters, http::status::bad_request);
         return;
     }
 
@@ -114,6 +114,6 @@ void CardHandler::handleDeleteRequest(const http::request<http::string_body> &re
     }
     else
     {
-        HttpResponseBuilder::buildJsonResponseForError(response, "Card or folder not found", http::status::not_found);
+        HttpResponseBuilder::buildJsonResponseForError(response, ErrorCode::CardNotFound, http::status::not_found);
     }
 }
