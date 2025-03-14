@@ -40,7 +40,7 @@ void DatabaseAccess::initializeDatabase()
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            google_id TEXT UNIQUE
+            google_id TEXT
         )
     )";
 
@@ -100,26 +100,31 @@ std::optional<User> DatabaseAccess::getUserByUsername(const std::string &usernam
     return std::nullopt;
 }
 
-std::optional<User> DatabaseAccess::getUserByGoogleId(const std::string &googleId) {
-    try {
+std::optional<User> DatabaseAccess::getUserByGoogleId(const std::string &googleId)
+{
+    try
+    {
         std::lock_guard<std::mutex> guard(dbMutex);
         SQLite::Statement query(*db, "SELECT id, username, google_id FROM Users WHERE google_id = ?");
         query.bind(1, googleId);
 
-        if (query.executeStep()) {
+        if (query.executeStep())
+        {
             User user;
             user.id = query.getColumn(0).getInt();
             user.name = query.getColumn(1).getText();
             user.googleId = query.getColumn(2).getText();
             return std::make_optional(user);
         }
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         std::cerr << "Failed to retrieve user by Google ID: " << e.what() << std::endl;
     }
     return std::nullopt;
 }
 
-std::optional<User> DatabaseAccess::createUser(User& user)
+std::optional<User> DatabaseAccess::createUser(User &user)
 {
     try
     {
@@ -198,6 +203,30 @@ std::optional<UserSession> DatabaseAccess::getSessionByToken(const std::string &
 
 bool DatabaseAccess::updateSessionToken(const UserSession &session)
 {
+    std::string checkTokenQuery = "SELECT COUNT(*) FROM UserSession WHERE token = ? OR tokenRefresh = ?";
+    SQLite::Statement check(*db, checkTokenQuery);
+    check.bind(1, session.token);
+    check.bind(2, session.tokenRefresh);
+
+    std::cerr << "Checking tokens: " << session.token << ", " << session.tokenRefresh << std::endl;
+
+    if (check.executeStep())
+    {
+        int count = check.getColumn(0).getInt();
+        std::cerr << "Token check count: " << count << std::endl;
+        if (count > 0)
+        {
+            std::cerr << "Token already exists in the database." << std::endl;
+            return false;
+        }
+    }
+    else
+    {
+        std::cerr << "No data returned on token check." << std::endl;
+    }
+
+    std::cerr << "No existing tokens found. Proceeding with update." << std::endl;
+
     try
     {
         std::lock_guard<std::mutex> guard(dbMutex);
